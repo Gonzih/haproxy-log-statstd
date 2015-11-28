@@ -47,16 +47,21 @@
 (defn submit-report! [{:keys [backend-name backend-server time-report bytes-read]}]
   (let [tt (:tt (string->timing-map time-report))
         k (format "haproxy.%s.%s" backend-name backend-server)]
-    (stats/timing k tt)
-    (stats/gauge k bytes-read)))
+    (stats/timing k (read-string tt))
+    (stats/gauge k  (read-string bytes-read))))
+
+(defn process-line! [line]
+  (try
+    (-> line
+        string->report
+        report->report-map
+        submit-report!)
+    (catch Exception e
+      (println (format "Exception \"%s\" while processing line \"%s\"" (.getMessage e) line)))))
 
 (defn process-lines! [lines]
   (println "Processing " (count lines) " lines")
-  (doall (map #(-> %
-                   string->report
-                   report->report-map
-                   submit-report!)
-          lines)))
+  (doall (map process-line! lines)))
 
 (defn -main [& [fname & _]]
   (stats/setup "localhost" 8125)
